@@ -13,8 +13,30 @@ function App() {
   const [fileName, setFileName] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Function to send data to Flutter
+  const sendToFlutter = (data: any) => {
+    if (window.flutter_inappwebview) {
+      window.flutter_inappwebview.callHandler('onSelectionChange', data);
+    } else if (window.flutter_webview) {
+      window.flutter_webview.postMessage(JSON.stringify(data));
+    }
+  };
+
   const handleSelectionChange = (summary: SelectionSummaryItem[]) => {
     console.log("Selection changed:", summary);
+    
+    // Send data to Flutter
+    const selectionData = {
+      selectedFaces: Array.from(xmlUISelection),
+      totalArea: Array.from(xmlUISelection).reduce((total, faceId) => {
+        const face = reportData?.facesMap.get(faceId);
+        return total + (face?.area || 0);
+      }, 0),
+      lineSummary: summary,
+      timestamp: new Date().toISOString()
+    };
+    
+    sendToFlutter(selectionData);
   };
 
   // Parse XML content when it changes

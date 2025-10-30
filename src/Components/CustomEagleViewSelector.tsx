@@ -10,7 +10,7 @@ import ThreeDViewer from "./ThreeDViewer";
 import type { ThreeDViewerControls } from "./ThreeDViewer";
 import {
   calculateSelectionSummary,
-  calculateDistance,
+  // calculateDistance,
   LINE_TYPE_MAP,
   DEFAULT_LINE_STYLE,
   VIEW_COLORS,
@@ -91,20 +91,20 @@ function removeFaceFromSelection(
   return selection.filter((item) => item.faceId !== faceId);
 }
 
-function updateFaceSummary(
-  selection: FaceSelectionItem[],
-  faceId: string,
-  reportData: ReportData
-): FaceSelectionItem[] {
-  return selection.map((item) =>
-    item.faceId === faceId
-      ? {
-          ...item,
-          faceSummary: calculateSelectionSummary(new Set([faceId]), reportData),
-        }
-      : item
-  );
-}
+// function updateFaceSummary(
+//   selection: FaceSelectionItem[],
+//   faceId: string,
+//   reportData: ReportData
+// ): FaceSelectionItem[] {
+//   return selection.map((item) =>
+//     item.faceId === faceId
+//       ? {
+//           ...item,
+//           faceSummary: calculateSelectionSummary(new Set([faceId]), reportData),
+//         }
+//       : item
+//   );
+// }
 
 // --- Face Disambiguation Popup ---
 interface FaceDisambiguationPopupProps {
@@ -285,7 +285,7 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
     x: number;
     y: number;
   } | null>(null);
-  const [highlightedLineType, setHighlightedLineType] = useState<string | null>(
+  const [highlightedLineType, _setHighlightedLineType] = useState<string | null>(
     null
   );
 
@@ -914,56 +914,56 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
     setDisambiguationPosition(null);
   };
 
-  const handleLegendClick = useCallback(
-    (type: string) => {
-      setHighlightedLineType((prev) => (prev === type ? null : type));
-      requestRedraw();
-    },
-    [requestRedraw]
-  );
+  // const handleLegendClick = useCallback(
+  //   (type: string) => {
+  //     setHighlightedLineType((prev) => (prev === type ? null : type));
+  //     requestRedraw();
+  //   },
+  //   [requestRedraw]
+  // );
 
-  const handleLegendDoubleClick = useCallback(
-    (type: string) => {
-      if (!reportData) return;
+  // const handleLegendDoubleClick = useCallback(
+  //   (type: string) => {
+  //     if (!reportData) return;
 
-      const faceIdsToSelect = new Set<string>();
-      const { linesMap, lineToFacesMap } = reportData;
+  //     const faceIdsToSelect = new Set<string>();
+  //     const { linesMap, lineToFacesMap } = reportData;
 
-      linesMap.forEach((line) => {
-        if (line.type === type) {
-          const associatedFaces = lineToFacesMap.get(line.id);
-          if (associatedFaces) {
-            associatedFaces.forEach((faceId) => {
-              faceIdsToSelect.add(faceId);
-            });
-          }
-        }
-      });
+  //     linesMap.forEach((line) => {
+  //       if (line.type === type) {
+  //         const associatedFaces = lineToFacesMap.get(line.id);
+  //         if (associatedFaces) {
+  //           associatedFaces.forEach((faceId) => {
+  //             faceIdsToSelect.add(faceId);
+  //           });
+  //         }
+  //       }
+  //     });
 
-      if (faceIdsToSelect.size > 0) {
-        let newSelection = [...xmlUISelection];
-        faceIdsToSelect.forEach((faceId) => {
-          if (!newSelection.some((item) => item.faceId === faceId)) {
-            newSelection = addFaceToSelection(newSelection, faceId, reportData);
-          }
-        });
+  //     if (faceIdsToSelect.size > 0) {
+  //       let newSelection = [...xmlUISelection];
+  //       faceIdsToSelect.forEach((faceId) => {
+  //         if (!newSelection.some((item) => item.faceId === faceId)) {
+  //           newSelection = addFaceToSelection(newSelection, faceId, reportData);
+  //         }
+  //       });
 
-        setXmlUISelection(newSelection);
+  //       setXmlUISelection(newSelection);
 
-        const selectedFaceIds = getSelectedFaceIds(newSelection);
-        onSelectionChange(
-          calculateSelectionSummary(selectedFaceIds, reportData),
-          newSelection
-        );
-        setIsAllSelected(
-          reportData.facesMap.size > 0 &&
-            selectedFaceIds.size === reportData.facesMap.size
-        );
-        requestRedraw();
-      }
-    },
-    [reportData, onSelectionChange, xmlUISelection, requestRedraw]
-  );
+  //       const selectedFaceIds = getSelectedFaceIds(newSelection);
+  //       onSelectionChange(
+  //         calculateSelectionSummary(selectedFaceIds, reportData),
+  //         newSelection
+  //       );
+  //       setIsAllSelected(
+  //         reportData.facesMap.size > 0 &&
+  //           selectedFaceIds.size === reportData.facesMap.size
+  //       );
+  //       requestRedraw();
+  //     }
+  //   },
+  //   [reportData, onSelectionChange, xmlUISelection, requestRedraw]
+  // );
 
   return (
     <div className="flex flex-col min-h-screen bg-white">

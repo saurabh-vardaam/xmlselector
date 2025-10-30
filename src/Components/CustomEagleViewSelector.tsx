@@ -966,7 +966,7 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
   // );
 
   return (
-    <div className="flex flex-col min-h-screen bg-white">
+    <div className="flex flex-col h-screen bg-white">
       {error && (
         <div
           className="p-3 mb-4 text-red-700 bg-red-100 border border-red-400 rounded"

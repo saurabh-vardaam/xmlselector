@@ -253,6 +253,9 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
   });
 
   const [canvasSize, setCanvasSize] = useState({ width: 800, height: 600 });
+  const [devicePixelRatio, setDevicePixelRatio] = useState(
+    typeof window !== 'undefined' ? window.devicePixelRatio : 1
+  );
 
   const [revision, setRevision] = useState(0);
   const requestRedraw = () => setRevision((r) => r + 1);
@@ -302,6 +305,42 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
       })
       .filter((faceData) => faceData.lines.length > 0);
   }, [hoveredFaceIds, reportData, viewMode]);
+
+  // Update device pixel ratio on resize/zoom
+  useEffect(() => {
+    const updateDPR = () => {
+      const newDPR = window.devicePixelRatio;
+      setDevicePixelRatio(prevDPR => {
+        if (newDPR !== prevDPR) {
+          // Trigger redraw when DPR changes in 2D mode
+          if (viewMode === "2D") {
+            requestRedraw();
+          }
+          return newDPR;
+        }
+        return prevDPR;
+      });
+    };
+    
+    // Handle window resize (fires on zoom in most browsers)
+    window.addEventListener('resize', updateDPR);
+    
+    // Use visualViewport API if available for better zoom detection
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateDPR);
+    }
+    
+    // Fallback: Check DPR periodically for zoom changes that don't fire resize
+    const intervalId = setInterval(updateDPR, 100);
+    
+    return () => {
+      window.removeEventListener('resize', updateDPR);
+      if (window.visualViewport) {
+        window.visualViewport.removeEventListener('resize', updateDPR);
+      }
+      clearInterval(intervalId);
+    };
+  }, [viewMode, requestRedraw]);
 
   useEffect(() => {
     const wrapper = canvasWrapperRef.current;
@@ -401,14 +440,24 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
       const canvas = canvasRef.current;
       if (canvas) {
         const ctx = canvas.getContext("2d");
-        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (ctx) {
+          const dpr = Math.max(1, devicePixelRatio);
+          const displayWidth = canvasSize.width;
+          const displayHeight = canvasSize.height;
+          canvas.width = displayWidth * dpr;
+          canvas.height = displayHeight * dpr;
+          canvas.style.width = `${displayWidth}px`;
+          canvas.style.height = `${displayHeight}px`;
+          ctx.scale(dpr, dpr);
+          ctx.clearRect(0, 0, displayWidth, displayHeight);
+        }
       }
     }
 
     if (!xmlContent) {
       setReportData(null);
     }
-  }, [reportData, canvasSize, calculateBaseTransform, xmlContent]);
+  }, [reportData, canvasSize, calculateBaseTransform, xmlContent, devicePixelRatio]);
 
   // Drawing Logic
   const drawScene = useCallback(() => {
@@ -424,7 +473,17 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
     if (!canvas || !reportData || !reportData.pointsMap.size) {
       if (canvas) {
         const ctx = canvas.getContext("2d");
-        if (ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (ctx) {
+          const dpr = Math.max(1, devicePixelRatio);
+          const displayWidth = canvasSize.width;
+          const displayHeight = canvasSize.height;
+          canvas.width = displayWidth * dpr;
+          canvas.height = displayHeight * dpr;
+          canvas.style.width = `${displayWidth}px`;
+          canvas.style.height = `${displayHeight}px`;
+          ctx.scale(dpr, dpr);
+          ctx.clearRect(0, 0, displayWidth, displayHeight);
+        }
       }
       return;
     }
@@ -433,15 +492,27 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
     const transform = transformRef.current;
     const hoveredIds = hoveredFaceIdsRef.current;
 
-    // Ensure canvas attributes match state for drawing buffer size
-    canvas.width = canvasSize.width;
-    canvas.height = canvasSize.height;
+    // Scale canvas for device pixel ratio to prevent blurriness
+    const dpr = Math.max(1, devicePixelRatio);
+    const displayWidth = canvasSize.width;
+    const displayHeight = canvasSize.height;
+    
+    // Set the actual canvas size accounting for DPR
+    canvas.width = displayWidth * dpr;
+    canvas.height = displayHeight * dpr;
+    
+    // Set the CSS size to the display size
+    canvas.style.width = `${displayWidth}px`;
+    canvas.style.height = `${displayHeight}px`;
+    
+    // Scale the context to match DPR
+    ctx.scale(dpr, dpr);
 
     // console.log("Canvas size:", { width: canvas.width, height: canvas.height });
     // console.log("Transform:", transform);
     // console.log("Drawing faces:", reportData.facesMap.size);
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0, 0, displayWidth, displayHeight);
 
     let faceIndex = 0;
     reportData.facesMap.forEach((face) => {
@@ -557,7 +628,7 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
     ctx.font = "bold 10px Arial";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    const labelThresholdScale = Math.min(canvas.width, canvas.height) / 1000;
+    const labelThresholdScale = Math.min(displayWidth, displayHeight) / 1000;
     reportData.facesMap.forEach((face) => {
       if (face.label && face.vertexPoints.length > 0 && face.centroid) {
         if (transform.scale > labelThresholdScale * 0.5) {
@@ -570,7 +641,7 @@ const CustomEagleViewSelector: React.FC<EagleViewSelectorProps> = ({
         }
       }
     });
-  }, [reportData, canvasSize, xmlUISelection, highlightedLineType]);
+  }, [reportData, canvasSize, xmlUISelection, highlightedLineType, devicePixelRatio]);
 
   // Animation Loop
   useEffect(() => {

@@ -114,6 +114,41 @@ const ThreeDViewer = forwardRef<ThreeDViewerControls, ThreeDViewerProps>(
       x: number;
       y: number;
     } | null>(null);
+    const [devicePixelRatio, setDevicePixelRatio] = useState(
+      typeof window !== 'undefined' ? window.devicePixelRatio : 1
+    );
+
+    // Update device pixel ratio on resize/zoom
+    useEffect(() => {
+      let lastDPR = devicePixelRatio;
+      
+      const updateDPR = () => {
+        const newDPR = window.devicePixelRatio;
+        if (newDPR !== lastDPR) {
+          lastDPR = newDPR;
+          setDevicePixelRatio(newDPR);
+        }
+      };
+      
+      // Handle window resize (fires on zoom in most browsers)
+      window.addEventListener('resize', updateDPR);
+      
+      // Use visualViewport API if available for better zoom detection
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener('resize', updateDPR);
+      }
+      
+      // Fallback: Check DPR periodically for zoom changes that don't fire resize
+      const intervalId = setInterval(updateDPR, 100);
+      
+      return () => {
+        window.removeEventListener('resize', updateDPR);
+        if (window.visualViewport) {
+          window.visualViewport.removeEventListener('resize', updateDPR);
+        }
+        clearInterval(intervalId);
+      };
+    }, []);
 
     useImperativeHandle(ref, () => ({
       zoomIn: () => {
@@ -237,7 +272,10 @@ const ThreeDViewer = forwardRef<ThreeDViewerControls, ThreeDViewerProps>(
 
     return (
       <>
-        <Canvas camera={{ position: cameraPosition.toArray(), fov: 50 }}>
+        <Canvas 
+          camera={{ position: cameraPosition.toArray(), fov: 50 }}
+          dpr={Math.max(1, devicePixelRatio)}
+        >
           <ambientLight intensity={0.7} />
           <pointLight
             position={[

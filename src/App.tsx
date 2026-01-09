@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import CustomEagleViewSelector from "./Components/CustomEagleViewSelector";
-import { parseEagleViewXML } from "./Components/eagleViewUtils";
+import { calculateSelectionSummary, parseEagleViewXML } from "./Components/eagleViewUtils";
 import type {
   ReportData,
   SelectionSummaryItem,
@@ -20,6 +20,7 @@ declare global {
 
 interface FaceSelectionItem {
   faceId: string;
+  faceLabel?: string;
   [key: string]: any;
 }
 import "./App.css";
@@ -30,6 +31,7 @@ function App() {
   const [xmlUISelection, setXmlUISelection] = useState<FaceSelectionItem[]>([]);
   const [isAllSelected, setIsAllSelected] = useState(false);
   const [error, setError] = useState<string>("");
+  const hasInitializedSelection = useRef<boolean>(false);
   const sendDataToFlutter = (data: any) => {
     if (
       window.webkit &&
@@ -63,23 +65,28 @@ function App() {
     };
   }, []);
 
-  const handleSelectionChange = (
-    summary: SelectionSummaryItem[],
-    currentSelection?: FaceSelectionItem[]
-  ) => {
-    const currentXmlUISelection = currentSelection || xmlUISelection;
-
-    const totalArea = currentXmlUISelection.reduce((total, item) => {
-      const face = reportData?.facesMap.get(item.faceId);
-      return total + (face?.area || 0);
-    }, 0);
-
+  const handleSelectionChange = (summary: SelectionSummaryItem[]) => {
     const selectionData = {
-      selectedFaces: currentXmlUISelection,
-      totalSummary: {
-        summary: summary,
-        totalArea: totalArea,
-      },
+      key:'saurabh & nikesh doing',
+      selectedFaces: xmlUISelection.map(item => {
+        const faceId = item.faceId;
+        const face = reportData?.facesMap.get(faceId);
+        const faceSummary = reportData
+          ? calculateSelectionSummary(new Set([faceId]), reportData)
+          : [];
+        return { 
+          faceSummary: faceSummary, 
+          faceId: faceId, 
+          faceLabel: item.faceLabel || face?.label,
+          pitch: face?.pitch 
+        }
+      }),
+      totalArea: xmlUISelection.reduce((total, item) => {
+        const face = reportData?.facesMap.get(item.faceId);
+        return total + (face?.area || 0);
+      }, 0),
+      lineSummary: summary,
+      timestamp: new Date().toISOString()
     };
     sendDataToFlutter(selectionData);
   };
@@ -105,6 +112,50 @@ function App() {
       setReportData(null);
     }
   }, [xmlContent]);
+
+
+  useEffect(() => {
+    if (reportData && reportData.facesMap.size > 0 && !hasInitializedSelection.current) {
+      hasInitializedSelection.current = true;
+      const allFaceIds = Array.from(reportData.facesMap.keys()).map(faceId => {
+        const face = reportData.facesMap.get(faceId);
+        return { 
+          faceId: faceId,
+          faceLabel: face?.label 
+        };
+      });
+      setXmlUISelection(allFaceIds);
+      setIsAllSelected(true);
+
+      const allFaceIdsSet = new Set(reportData.facesMap.keys());
+      const summary = calculateSelectionSummary(allFaceIdsSet, reportData);
+
+      const selectionData = {
+        selectedFaces: allFaceIds.map(item => {
+          const faceId = item.faceId;
+          const face = reportData.facesMap.get(faceId);
+          const faceSummary = calculateSelectionSummary(new Set([faceId]), reportData);
+          return {
+            faceSummary: faceSummary,
+            faceId: faceId,
+            faceLabel: item.faceLabel || face?.label,
+            pitch: face?.pitch
+          };
+        }),
+        totalArea: allFaceIds.reduce((total, item) => {
+          const face = reportData.facesMap.get(item.faceId);
+          return total + (face?.area || 0);
+        }, 0),
+        lineSummary: summary,
+        timestamp: new Date().toISOString()
+      };
+      sendDataToFlutter(selectionData);
+    }
+
+    if (!reportData) {
+      hasInitializedSelection.current = false;
+    }
+  }, [reportData]);
 
   return (
     <div className="min-h-screen bg-gray-100">

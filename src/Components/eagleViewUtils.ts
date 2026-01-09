@@ -462,3 +462,36 @@ export function calculateSelectionSummary(
   return summaryResult;
 }
 
+export interface FaceSummary {
+  faceId: string;
+  faceLabel?: string;
+  area?: number;
+  pitch?: number;
+  lineSummary: SelectionSummaryItem[];
+}
+
+export function calculateFaceSummary(
+  faceId: string,
+  reportData: ReportData
+): FaceSummary | null {
+  if (!reportData) {
+    return null;
+  }
+
+  const face = reportData.facesMap.get(faceId);
+  if (!face) {
+    return null;
+  }
+
+  const lineSummary = calculateSelectionSummary(new Set([faceId]), reportData);
+
+  return {
+    faceId: face.id,
+    faceLabel: face.label,
+    area: face.area,
+    pitch: face.pitch,
+    lineSummary: lineSummary.filter(item => item.name !== 'Total Area' && item.name !== 'Pitch'), 
+  };
+}
+
+

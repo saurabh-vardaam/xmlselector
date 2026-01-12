@@ -67,18 +67,18 @@ function App() {
 
   const handleSelectionChange = (summary: SelectionSummaryItem[]) => {
     const selectionData = {
-      key:'saurabh & nikesh doing',
+      key: 'saurabh & nikesh doing',
       selectedFaces: xmlUISelection.map(item => {
         const faceId = item.faceId;
         const face = reportData?.facesMap.get(faceId);
         const faceSummary = reportData
           ? calculateSelectionSummary(new Set([faceId]), reportData)
           : [];
-        return { 
-          faceSummary: faceSummary, 
-          faceId: faceId, 
+        return {
+          faceSummary: faceSummary,
+          faceId: faceId,
           faceLabel: item.faceLabel || face?.label,
-          pitch: face?.pitch 
+          pitch: face?.pitch
         }
       }),
       totalArea: xmlUISelection.reduce((total, item) => {
@@ -119,9 +119,9 @@ function App() {
       hasInitializedSelection.current = true;
       const allFaceIds = Array.from(reportData.facesMap.keys()).map(faceId => {
         const face = reportData.facesMap.get(faceId);
-        return { 
+        return {
           faceId: faceId,
-          faceLabel: face?.label 
+          faceLabel: face?.label
         };
       });
       setXmlUISelection(allFaceIds);
@@ -139,7 +139,8 @@ function App() {
             faceSummary: faceSummary,
             faceId: faceId,
             faceLabel: item.faceLabel || face?.label,
-            pitch: face?.pitch
+            pitch: face?.pitch,
+            area: face?.area,
           };
         }),
         totalArea: allFaceIds.reduce((total, item) => {

@@ -216,7 +216,7 @@ interface EagleViewSelectorProps {
   xmlContent: string | null;
   onSelectionChange: (
     summary: SelectionSummaryItem[],
-    currentSelection?: FaceSelectionItem[]
+    currentSelection: FaceSelectionItem[]
   ) => void;
   onFaceSelectionChange?: (faces: Set<string>) => void;
   error: string;

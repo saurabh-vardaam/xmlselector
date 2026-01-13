@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import CustomEagleViewSelector from "./Components/CustomEagleViewSelector";
-import { calculateSelectionSummary, parseEagleViewXML } from "./Components/eagleViewUtils";
+import {
+  calculateSelectionSummary,
+  parseEagleViewXML,
+} from "./Components/eagleViewUtils";
 import type {
   ReportData,
   SelectionSummaryItem,
@@ -65,10 +68,9 @@ function App() {
     };
   }, []);
 
-  const handleSelectionChange = (summary: SelectionSummaryItem[]) => {
+  const handleSelectionChange = (summary: SelectionSummaryItem[],currentSelection: FaceSelectionItem[]) => {
     const selectionData = {
-      key: 'saurabh & nikesh doing',
-      selectedFaces: xmlUISelection.map(item => {
+      selectedFaces: currentSelection.map((item) => {
         const faceId = item.faceId;
         const face = reportData?.facesMap.get(faceId);
         const faceSummary = reportData
@@ -78,15 +80,16 @@ function App() {
           faceSummary: faceSummary,
           faceId: faceId,
           faceLabel: item.faceLabel || face?.label,
-          pitch: face?.pitch
-        }
+          pitch: face?.pitch,
+          area: face?.area,
+        };
       }),
-      totalArea: xmlUISelection.reduce((total, item) => {
+      totalArea: currentSelection.reduce((total, item) => {
         const face = reportData?.facesMap.get(item.faceId);
         return total + (face?.area || 0);
       }, 0),
       lineSummary: summary,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
     sendDataToFlutter(selectionData);
   };
@@ -115,7 +118,11 @@ function App() {
 
 
   useEffect(() => {
-    if (reportData && reportData.facesMap.size > 0 && !hasInitializedSelection.current) {
+    if (
+      reportData &&
+      reportData.facesMap.size > 0 &&
+      !hasInitializedSelection.current
+    ) {
       hasInitializedSelection.current = true;
       const allFaceIds = Array.from(reportData.facesMap.keys()).map(faceId => {
         const face = reportData.facesMap.get(faceId);

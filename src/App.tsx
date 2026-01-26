@@ -30,11 +30,13 @@ import "./App.css";
 
 function App() {
   const [xmlContent, setXmlContent] = useState<string | null>(null);
+  const [allFacesData, setAllFacesData] = useState<any[]>([]);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [xmlUISelection, setXmlUISelection] = useState<FaceSelectionItem[]>([]);
   const [isAllSelected, setIsAllSelected] = useState(false);
   const [error, setError] = useState<string>("");
   const hasInitializedSelection = useRef<boolean>(false);
+
   const sendDataToFlutter = (data: any) => {
     if (
       window.webkit &&
@@ -50,6 +52,25 @@ function App() {
     } else {
       console.log("⚠️ Not running in Flutter WebView, data not sent:", data);
     }
+  };
+
+  const getPolygonEdges = (face: any, reportData: ReportData | null) => {
+    if (!face || !reportData || !face.orderedPointIds) return [];
+    return face.orderedPointIds.map((pointId: string, index: number) => {
+      const nextIndex = (index + 1) % face.orderedPointIds.length;
+      const nextPointId = face.orderedPointIds[nextIndex];
+      const line = Array.from(reportData.linesMap.values()).find(l =>
+        (l.point1Id === pointId && l.point2Id === nextPointId) ||
+        (l.point1Id === nextPointId && l.point2Id === pointId)
+      );
+      return {
+        edgeIndex: index,
+        point1Id: pointId,
+        point2Id: nextPointId,
+        lineId: line?.id,
+        lineType: line?.type,
+      };
+    });
   };
 
   useEffect(() => {
@@ -68,7 +89,7 @@ function App() {
     };
   }, []);
 
-  const handleSelectionChange = (summary: SelectionSummaryItem[],currentSelection: FaceSelectionItem[]) => {
+  const handleSelectionChange = (summary: SelectionSummaryItem[], currentSelection: FaceSelectionItem[]) => {
     const selectionData = {
       selectedFaces: currentSelection.map((item) => {
         const faceId = item.faceId;
@@ -90,6 +111,7 @@ function App() {
       }, 0),
       lineSummary: summary,
       timestamp: new Date().toISOString(),
+      allFacesData: allFacesData,
     };
     sendDataToFlutter(selectionData);
   };
@@ -106,6 +128,22 @@ function App() {
           faces: parsedData.facesMap.size,
           boundingBox: parsedData.boundingBox,
         });
+
+        const allFacesData = Array.from(parsedData.facesMap.values()).map(face => ({
+          faceId: face.id,
+          faceLabel: face.label,
+          pitch: face.pitch,
+          area: face.area,
+          polygon2D: face.vertexPoints,
+          polygon3D: face.vertexPoints3D,
+          orderedPointIds: face.orderedPointIds,
+          centroid: face.centroid,
+          lineIds: face.lineIds,
+          polygonEdges: getPolygonEdges(face, parsedData),
+        }));
+
+        setAllFacesData(allFacesData);
+
       } else {
         setError("Failed to parse XML file. Please check the file format.");
         setReportData(null);
@@ -155,7 +193,8 @@ function App() {
           return total + (face?.area || 0);
         }, 0),
         lineSummary: summary,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        allFacesData: allFacesData,
       };
       sendDataToFlutter(selectionData);
     }
@@ -167,6 +206,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+
       {xmlContent ? (
         <CustomEagleViewSelector
           xmlContent={xmlContent}

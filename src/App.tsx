@@ -205,7 +205,7 @@ function App() {
   }, [reportData]);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 font-poppins">
 
       {xmlContent ? (
         <CustomEagleViewSelector

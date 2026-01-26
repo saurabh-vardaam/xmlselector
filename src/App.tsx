@@ -30,6 +30,7 @@ import "./App.css";
 
 function App() {
   const [xmlContent, setXmlContent] = useState<string | null>(null);
+  const [allFacesData, setAllFacesData] = useState<any[]>([]);
   const [reportData, setReportData] = useState<ReportData | null>(null);
   const [xmlUISelection, setXmlUISelection] = useState<FaceSelectionItem[]>([]);
   const [isAllSelected, setIsAllSelected] = useState(false);
@@ -38,6 +39,7 @@ function App() {
   const [fileName, setFileName] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
   const sendDataToFlutter = (data: any) => {
+    console.log('data,,,',data)
     if (
       window.webkit &&
       window.webkit.messageHandlers &&
@@ -52,6 +54,25 @@ function App() {
     } else {
       console.log("⚠️ Not running in Flutter WebView, data not sent:", data);
     }
+  };
+
+  const getPolygonEdges = (face: any, reportData: ReportData | null) => {
+    if (!face || !reportData || !face.orderedPointIds) return [];
+    return face.orderedPointIds.map((pointId: string, index: number) => {
+      const nextIndex = (index + 1) % face.orderedPointIds.length;
+      const nextPointId = face.orderedPointIds[nextIndex];
+      const line = Array.from(reportData.linesMap.values()).find(l =>
+        (l.point1Id === pointId && l.point2Id === nextPointId) ||
+        (l.point1Id === nextPointId && l.point2Id === pointId)
+      );
+      return {
+        edgeIndex: index,
+        point1Id: pointId,
+        point2Id: nextPointId,
+        lineId: line?.id,
+        lineType: line?.type,
+      };
+    });
   };
 
   useEffect(() => {
@@ -92,6 +113,7 @@ function App() {
       }, 0),
       lineSummary: summary,
       timestamp: new Date().toISOString(),
+      allFacesData: allFacesData,
     };
     sendDataToFlutter(selectionData);
   };
@@ -108,6 +130,22 @@ function App() {
           faces: parsedData.facesMap.size,
           boundingBox: parsedData.boundingBox,
         });
+
+        const allFacesData = Array.from(parsedData.facesMap.values()).map(face => ({
+          faceId: face.id,
+          faceLabel: face.label,
+          pitch: face.pitch,
+          area: face.area,
+          polygon2D: face.vertexPoints,
+          polygon3D: face.vertexPoints3D,
+          orderedPointIds: face.orderedPointIds,
+          centroid: face.centroid,
+          lineIds: face.lineIds,
+          polygonEdges: getPolygonEdges(face, parsedData),
+        }));
+
+        setAllFacesData(allFacesData);
+
       } else {
         setError("Failed to parse XML file. Please check the file format.");
         setReportData(null);
@@ -157,7 +195,8 @@ function App() {
           return total + (face?.area || 0);
         }, 0),
         lineSummary: summary,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        allFacesData: allFacesData,
       };
       sendDataToFlutter(selectionData);
     }
@@ -196,7 +235,7 @@ function App() {
     setFileName("");
     setError("");
     setReportData(null);
-    setXmlUISelection(new Set());
+    setXmlUISelection([]);
     setIsAllSelected(false);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
@@ -204,38 +243,38 @@ function App() {
   };
   return (
     <div className="min-h-screen bg-gray-100">
-          <div className="mb-4">
-          <label
-            htmlFor="xml-file"
-            className="block mb-2 text-sm font-medium text-gray-700"
-          >
-            Upload EagleView XML File
-          </label>
-          <div className="flex items-center space-x-4">
-            <input
-              ref={fileInputRef}
-              id="xml-file"
-              type="file"
-              accept=".xml,text/xml"
-              onChange={handleFileUpload}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-            />
-            {xmlContent && (
-              <button
-                onClick={handleClearFile}
-                className="px-4 py-2 text-sm font-medium text-red-700 transition-colors bg-red-100 rounded-md hover:bg-red-200"
-              >
-                Clear File
-              </button>
-            )}
-          </div>
+      <div className="mb-4">
+        <label
+          htmlFor="xml-file"
+          className="block mb-2 text-sm font-medium text-gray-700"
+        >
+          Upload EagleView XML File
+        </label>
+        <div className="flex items-center space-x-4">
+          <input
+            ref={fileInputRef}
+            id="xml-file"
+            type="file"
+            accept=".xml,text/xml"
+            onChange={handleFileUpload}
+            className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+          />
+          {xmlContent && (
+            <button
+              onClick={handleClearFile}
+              className="px-4 py-2 text-sm font-medium text-red-700 transition-colors bg-red-100 rounded-md hover:bg-red-200"
+            >
+              Clear File
+            </button>
+          )}
         </div>
+      </div>
 
-        {fileName && (
-          <div className="mb-2 text-sm text-gray-600">
-            <span className="font-medium">Loaded file:</span> {fileName}
-          </div>
-        )}
+      {fileName && (
+        <div className="mb-2 text-sm text-gray-600">
+          <span className="font-medium">Loaded file:</span> {fileName}
+        </div>
+      )}
       {xmlContent ? (
         <CustomEagleViewSelector
           xmlContent={xmlContent}
